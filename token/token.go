@@ -35,3 +35,17 @@ const (
 	FUNCTION = "FUNCTION"
 	LET      = "LET"
 )
+
+
+var keywords = map[string]TokenType{
+	"fn":  FUNCTION,
+	"let": LET,
+}
+
+// LookupIdent 判断标识符是否为关键字
+func LookupIdent(ident string) TokenType {
+	if tokeType, ok := keywords[ident]; ok {
+		return tokeType
+	}
+	return IDENT
+}
