@@ -29,6 +29,9 @@ const (
 	LT = "<"
 	GT = ">"
 
+	EQ = "=="
+	NOT_EQ = "!="
+
 	// 分隔符
 	COMMA 	  = ","
 	SEMICOLON = ";"
@@ -46,6 +49,8 @@ const (
 	IF       = "IF"
 	ELSE     = "ELSE"
 	RETURN   = "RETURN"
+
+
 )
 
 
