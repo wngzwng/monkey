@@ -21,6 +21,13 @@ const (
 	// 运算符
 	ASSIGN = "="
 	PLUS   = "+"
+	MINUS  = "-"
+	BANG   = "!"
+	ASTERISK = "*"
+	SLASH    = "/"
+
+	LT = "<"
+	GT = ">"
 
 	// 分隔符
 	COMMA 	  = ","
