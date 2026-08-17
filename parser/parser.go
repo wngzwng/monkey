@@ -16,6 +16,22 @@ type (
 	infixParseFn  func(ast.Expression) ast.Expression // 中缀解析函数
 )
 
+// Monkey 语言优先级
+const (
+	// 使用iota 为这些常量设置逐个递增的数值
+	// 空白标识符 _ 为0，其余的常量值是1到7
+	// 顺序与彼此之间的关系，用来区分运算符优先级
+	_ int = iota 	
+
+	LOWEST
+	EQUALS			// ==
+	LESSGREATER		// > or < 
+	SUM 			// _ 
+	PRODUCT			// *
+	PREFIX			// -X or !X 
+	CALL 			// myFunction(X)
+)
+
 type Parser struct {
 	l      *lexer.Lexer
 	errors []string
@@ -34,6 +50,9 @@ func New(l *lexer.Lexer) *Parser {
 		prefixParseFns: map[token.TokenType]prefixParseFn{},
 		infixParseFns:  map[token.TokenType]infixParseFn{},
 	}
+
+	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
+	p.registerPrefix(token.IDENT, p.parseIdentifier)
 
 	// 读取两个 token, 让 currentToken 和 peekToken 都被设置
 	p.nextToken()
@@ -82,6 +101,7 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 	}
 }
 
+// 解析主入口
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
@@ -97,6 +117,8 @@ func (p *Parser) ParseProgram() *ast.Program {
 	return program
 }
 
+
+// 解析语句
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.currentToken.Type {
 	case token.LET:
@@ -104,7 +126,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case token.RETURN:
 		return p.parseReturnStatement()
 	default:
-		return nil
+		return p.parseExpressionStatement()
 	}
 }
 
@@ -140,4 +162,33 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	}
 
 	return stmt
+}
+
+
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	stmt := &ast.ExpressionStatement{Token: p.currentToken}
+	stmt.Expression = p.parseExpression(LOWEST)
+
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseExpression(precedence int) ast.Expression {
+	prefix := p.prefixParseFns[p.currentToken.Type]
+	if prefix == nil {
+		return nil
+	}
+	leftExp := prefix()
+
+	return leftExp
+}
+
+
+// ============== 解析函数 ====================
+
+func (p *Parser) parseIdentifier() ast.Expression {
+	return &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
 }
