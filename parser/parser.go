@@ -8,13 +8,7 @@ import (
 	"monkey/token"
 )
 
-// 每个词法单元类型最多可以关联
-// 两个解析函数，这取决于词法单于的位置，
-// 是位于前缀位置还是中缀位置
-type (
-	prefixParseFn func() ast.Expression               // 前缀解析函数
-	infixParseFn  func(ast.Expression) ast.Expression // 中缀解析函数
-)
+
 
 // Monkey 语言优先级
 const (
@@ -31,6 +25,15 @@ const (
 	PREFIX			// -X or !X 
 	CALL 			// myFunction(X)
 )
+
+// 每个词法单元类型最多可以关联
+// 两个解析函数，这取决于词法单于的位置，
+// 是位于前缀位置还是中缀位置
+type (
+	prefixParseFn func() ast.Expression               // 前缀解析函数
+	infixParseFn  func(ast.Expression) ast.Expression // 中缀解析函数
+)
+
 
 type Parser struct {
 	l      *lexer.Lexer
@@ -51,11 +54,24 @@ func New(l *lexer.Lexer) *Parser {
 		infixParseFns:  map[token.TokenType]infixParseFn{},
 	}
 
+	// 注册前缀解析函数
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
+
+	// 注册中缀解析函数
+	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+	p.registerInfix(token.PLUS, p.parseInfixExpression)
+	p.registerInfix(token.MINUS, p.parseInfixExpression)
+	p.registerInfix(token.SLASH, p.parseInfixExpression)
+	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
+	p.registerInfix(token.EQ, p.parseInfixExpression)
+	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
+	p.registerInfix(token.LT, p.parseInfixExpression)
+	p.registerInfix(token.GT, p.parseInfixExpression)
+
 
 	// 读取两个 token, 让 currentToken 和 peekToken 都被设置
 	p.nextToken()
@@ -192,9 +208,48 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	}
 	leftExp := prefix()
 
+	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
+		infix := p.infixParseFns[p.peekToken.Type]
+		if infix == nil {
+			return leftExp
+		}
+
+		p.nextToken()
+
+		leftExp = infix(leftExp)
+	}
+
 	return leftExp
 }
 
+
+// ============== 优先级表 ====================
+var precedences = map[token.TokenType]int {
+	token.EQ:		EQUALS,
+	token.NOT_EQ:	EQUALS,
+	token.LT:		LESSGREATER,
+	token.GT:		LESSGREATER,
+	token.PLUS:		SUM,
+	token.MINUS:	SUM,
+	token.SLASH:	PRODUCT,
+	token.ASTERISK: PRODUCT,
+}
+
+func (p *Parser) peekPrecedence() int {
+	if p, ok := precedences[p.peekToken.Type]; ok {
+		return p
+	}
+
+	return LOWEST
+}
+
+func (p *Parser) curPrecedence() int {
+	if p, ok := precedences[p.currentToken.Type]; ok {
+		return p
+	}
+
+	return LOWEST
+}
 
 // ============== 解析函数 ====================
 
@@ -227,6 +282,20 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	p.nextToken()
 
 	expression.Right = p.parseExpression(PREFIX)
+
+	return expression
+}
+
+func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	expression := &ast.InfixExpression {
+		Token:		p.currentToken,
+		Operator:	p.currentToken.Literal,
+		Left: 		left,
+	}
+
+	precedence := p.curPrecedence()
+	p.nextToken()
+	expression.Right = p.parseExpression(precedence)
 
 	return expression
 }
