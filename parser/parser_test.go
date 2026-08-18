@@ -343,6 +343,29 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
     }
 }
 
+func TestBooleanExpression(t *testing.T) {
+	tests := []struct {
+		input 		string
+		expected 	string
+	} {
+		{"true", "true"},
+		{"false", "false"},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		actual := program.String()
+		if actual != tt.expected {
+			t.Errorf("expected=%q, got=%q", tt.expected, actual)
+		}
+	}
+
+}
+
 
 
 // ========== helper ==========
